@@ -1,0 +1,104 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2638
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\margl1440\margr1440\vieww26260\viewh17360\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 # Written by: Melissa Hunfalvay\
+# Date: July 7th, 2022\
+# Assignment 3\
+# Big Data 650\
+# Professor Ozcan\
+\
+# Data source: First GOP debate: https://data.world/socialmediadata/first-gop-debate-twitter \
+ \
+ -- check the rows count\
+SELECT count(*) num_rows\
+  FROM FIRST_GOP_DEBATE;\
+ \
+-- SYSIBM.SYSTABLES \
+ SELECT  NAME, CREATOR, CTIME, COLCOUNT\
+   FROM  SYSIBM.SYSTABLES\
+  WHERE  CREATOR ='WXT47640'; \
+  \
+-- SYSIBM.SYSCOLUMNS\
+SELECT  NAME, TBNAME, TBCREATOR, COLTYPE, NULLS, LENGTH\
+  FROM  SYSIBM.SYSCOLUMNS \
+ WHERE  TBCREATOR='WXT47640'\
+   AND  TBNAME='FIRST_GOP_DEBATE';\
+   \
+-- How many times each candidate is mentioned?\
+SELECT CANDIDATE, count(*)\
+	FROM FIRST_GOP_DEBATE \
+GROUP BY CANDIDATE\
+ORDER BY CANDIDATE asc\
+\
+-- Write a query that returns the following 5 columns \
+-- Column 1 \'96 Candidate name\
+-- Column 2 \'96 Number of negative mentions for a candidate in column 1\
+-- Column 3 \'96 Number of positive mentions for a candidate in column 1\
+-- Column 4 \'96 Number of neutral mentions for a candidate in column 1\
+-- Column 5 \'96 Total number of mentions for a candidate in column 1\
+\
+SELECT CANDIDATE, \
+SUM(CASE WHEN LOWER(SENTIMENT) = \'91negative\'92 THEN 1 ELSE 0 END) AS Negative, \
+SUM(CASE WHEN LOWER(SENTIMENT) = \'91positive\'92 THEN 1 ELSE 0 END) AS Positive,\
+SUM(CASE WHEN LOWER(SENTIMENT) = \'91neutral\'92 THEN 1 ELSE 0 END) AS Neutral,\
+count(*) AS TOTAL\
+	FROM FIRST_GOP_DEBATE \
+GROUP BY CANDIDATE\
+ORDER BY CANDIDATE asc;\
+\
+-- Write 4 additional meaningful queries\
+-- Use the subqueries, and aggregate functions. \
+-- Include an output (or partial output if an output does not fit on a single page) screenshot\
+\
+-- 1. What were the subject_matter topics discussed in the debate?\
+    \
+SELECT SUBJECT_MATTER\
+	FROM FIRST_GOP_DEBATE \
+GROUP BY SUBJECT_MATTER\
+\
+-- 2. What were the total number of tweets per subject matter?\
+\
+SELECT SUBJECT_MATTER, count(*)\
+	FROM FIRST_GOP_DEBATE \
+GROUP BY SUBJECT_MATTER\
+ORDER BY COUNT(*) DESC\
+\
+-- 3. Create a table that shows the candidate, subject matter, total tweets on that candidate, tweets on subject by that candidate. #Use subqueries. \
+\
+SELECT a.CANDIDATE, SUBJECT_MATTER, Total, count(*)\
+	FROM FIRST_GOP_DEBATE a JOIN (\
+SELECT CANDIDATE, COUNT(*) AS Total\
+	FROM FIRST_GOP_DEBATE\
+GROUP BY CANDIDATE\
+) b\
+On a.CANDIDATE = b.CANDIDATE\
+GROUP BY a.CANDIDATE, SUBJECT_MATTER, Total\
+ORDER BY a.CANDIDATE, SUBJECT_MATTER;\
+\
+\
+-- 4. What is the average subject_matter_confidence for tweets about each candidate? Columns: Candidate, subject_matter_confidence. USE subqueries and aggregates. \
+\
+SELECT  CANDIDATE, AVG(SUBJECT_MATTER_CONFIDENCE)\
+	FROM FIRST_GOP_DEBATE \
+GROUP BY CANDIDATE\
+ORDER BY AVG(SUBJECT_MATTER_CONFIDENCE) DESC\
+\
+-- 5. Retweet count for each candidate. Use aggregates.\
+\
+SELECT CANDIDATE, SUM(RETWEET_COUNT) \
+	FROM  FIRST_GOP_DEBATE\
+GROUP BY CANDIDATE\
+ORDER BY SUM(RETWEET_COUNT)  DESC\
+\
+-- 5. What percentage of people tweeted from within Ohio? USE subqueries\
+\
+SELECT (SELECT COUNT(*) FROM FIRST_GOP_DEBATE WHERE 'ohio' IN LOWER(TWEET_LOCATION)),COUNT(*)\
+	FROM FIRST_GOP_DEBATE;\
+\
+\
+\
+}

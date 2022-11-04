@@ -1,0 +1,275 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2638
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\margl1440\margr1440\vieww28440\viewh17720\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 # Written by: Melissa Hunfalvay\
+# Date: July 7th, 2022\
+# Assignment 3\
+# Big Data 650\
+# Professor Ozcan\
+\
+# Data source: First GOP debate: https://data.world/socialmediadata/first-gop-debate-twitter \
+\
+#Read the data from object storage.\
+df<- read.csv("~/project-objectstorage/First_GOP_Debate.csv", stringsAsFactors=FALSE)\
+\
+#Check the row counts\
+nrow(df)\
+\
+#View table\
+head(df)\
+\
+#Pie charts\
+#Reset the margin\
+par(mar=c(1,1,1,1))\
+#Use default colors\
+pie (table(df$CANDIDATE))\
+#Change colors\
+pie (table(df$CANDIDATE), col=c("blue", "yellow", "green", "purple", "pink", "orange"))\
+\
+#load the plyr package\
+library("plyr")\
+#List the most common complaints\
+reasonCounts<-na.omit(plyr::count(df$SENTIMENT))\
+reasonCounts<-reasonCounts[order(reasonCounts$freq, decreasing=TRUE), ]\
+reasonCounts\
+\
+# Using ggplot2 package\
+# Complaints frequency plot\
+library(ggplot2)\
+wf <- data.frame(reasonCounts)\
+p <- ggplot(wf, aes(wf$x, wf$freq))\
+p <- p + geom_bar(stat="identity")\
+p <- p + theme(axis.text.x=element_text(angle=45, hjust=1))\
+p\
+\
+\
+#Number of retweets per negative reason\
+ddply(df, ~ SENTIMENT, summarize, numRetweets = sum(RETWEET_COUNT, na.rm = TRUE)) ###neative is within a column NOT a column\
+\
+#Posts that have 100 retweets\
+as.character(subset(df,RETWEET_COUNT ==100)$TEXT)\
+\
+#number of posts per day\
+posts<-as.Date(df$TWEET_CREATED, tryFormats = c("%Y-%m-%d", "%Y/%m/%d", "%m/%d/%Y"),optional = FALSE)\
+table(posts)\
+#day with the maximum number of posts\
+table(posts)[which.max(table(posts))]\
+# Written by: Melissa Hunfalvay\
+# Date: July 7th, 2022\
+# Assignment 3\
+# Big Data 650\
+# Professor Ozcan\
+\
+# Data source: First GOP debate: https://data.world/socialmediadata/first-gop-debate-twitter \
+\
+#number of posts per day by sentiment plot\
+library (dplyr)\
+\
+drs<-df[, c('TWEET_CREATED', 'SENTIMENT')]\
+\
+drs$TWEET_CREATED<- as.Date(drs$TWEET_CREATED, tryFormats = c("%Y-%m-%d", "%Y/%m/%d", "%m/%d/%Y"),optional = FALSE)\
+\
+# Trend analysis the number of tweets of each sentiment over time\
+ByDateBySent <- drs %>% group_by(SENTIMENT,TWEET_CREATED) %>% dplyr::summarise(count = n())\
+ByDateBySentPlot = ggplot() + geom_line(data=ByDateBySent, aes(x=TWEET_CREATED, y=count, group =SENTIMENT , color=SENTIMENT)) \
+ByDateBySentPlot\
+\
+head(drs)\
+\
+\
+#Apriori rules method \
+library (arules)\
+dfa<-df[ , c('CANDIDATE', 'CANDIDATE_CONFIDENCE',  'SENTIMENT',  'SENTIMENT_CONFIDENCE', 'SUBJECT_MATTER','SUBJECT_MATTER_CONFIDENCE')]\
+dfa$CANDIDATE<-as.factor(dfa$CANDIDATE) \
+dfa$SENTIMENT<-as.factor(dfa$SENTIMENT)\
+dfa$SUBJECT_MATTER<-as.factor(dfa$SUBJECT_MATTER)\
+dfa$TWEET_LOCATION<-as.factor(dfa$TWEET_LOCATION)\
+\
+dfa$RETWEET_COUNT<-cut(dfa$RETWEET_COUNT, breaks=c(0, 100, 1000, Inf), right=F, labels=c("0", "100",  "1000+")) \
+dfa$CANDIDATE_CONFIDENCE<-cut(dfa$CANDIDATE_CONFIDENCE, breaks=c(0, 0.5, 1), right=F, labels=c("0-0.49",  "0.50-1")) \
+dfa$SENTIMENT_CONFIDENCE<-cut(dfa$SENTIMENT_CONFIDENCE, breaks=c(0.186, 0.6629, 1), right=F, labels=c("0.185-0.6628", "0.6629-1.000")) \
+dfa$SUBJECT_MATTER_CONFIDENCE<-cut(dfa$SUBJECT_MATTER_CONFIDENCE, breaks=c(0.2222, 0.6663, 1), right=F, labels=c("0.2221-0.6662", "0.6663-1.000")) \
+\
+rules<-apriori(dfa)\
+\
+inspect(rules[1:30])\
+summary(rules)\
+\
+#Show the rules that have at least 2 items\
+rules <- apriori(dfa, parameter=list(minlen=2))\
+inspect(rules[1:30])\
+summary(rules)\
+\
+#Remove redundant rules\
+a.rules<-rules[!is.redundant(rules, measure ='confidence')]\
+inspect(a.rules[1:30])\
+summary(a.rules)\
+\
+#Sort rules by lift\
+rules_by_lift <- sort(a.rules, by = "lift")\
+inspect(rules_by_lift[1:30])\
+\
+ \
+#Additional Statistics\
+interestMeasure(rules_by_lift, c("chiSquare", "conviction", "cosine", "coverage", "leverage", "oddsRatio"), a.rules)\
+ \
+#Visualize results\
+#install.packages('arulesViz')\
+library(arulesViz)\
+#Scatterplot\
+plot(rules_by_lift)\
+ \
+#graph\
+plot(rules_by_lift, method='graph')\
+ \
+#Interactive plot\
+plot(rules_by_lift,shading='lift', measure='support')\
+plot(rules_by_lift,method='grouped', shading='confidence', measure='support')\
+plot(rules_by_lift, shading='order', control=list(main='Two-key plot'))\
+plot(rules_by_lift,,method='paracoord')\
+plot(rules_by_lift,, method='matrix', engine='3d', measure='lift', control=list(reorder='support'))\
+plot(rules, method="graph", alpha=1, cex=0.9)\
+ \
+ \
+ #Text Mining\
+ #install tm, wordcloud, SnowballC for stemming.  Do it only once.\
+ #install.packages("tm")\
+ #install.packages("SnowballC")\
+ #install.packages("wordcloud")\
+ \
+ \
+ #Load the packages in memory\
+ library("tm")\
+ library("wordcloud")\
+ library ("SnowballC")\
+ \
+ #Load the tweets with positive sentiment into the data frame positive\
+ positive<-df[df$SENTIMENT=='Positive', c('TEXT')]\
+ \
+ docs\
+ \
+ docs<-VectorSource(positive)\
+ docs<-Corpus(docs)\
+ inspect(docs[[1]])\
+ inspect(docs[[2]])\
+ inspect(docs[[20]])\
+ \
+ #Strip the white space\
+ docs <- tm_map(docs, stripWhitespace)\
+ \
+ #Remove the URLs\
+ removeURL <- function(x) gsub("http[^[:space:]]*", "", x)\
+ docs <- tm_map(docs, content_transformer(removeURL))\
+ \
+ #Remove non ASCII character\
+ removeInvalid<-function(x) gsub("[^\\x01-\\x7F]", "", x)\
+ docs <- tm_map(docs, content_transformer(removeInvalid))\
+ \
+ #Remove punctuation\
+ docs <- tm_map(docs, removePunctuation)\
+ \
+ #remove the numbers\
+ docs <- tm_map(docs, removeNumbers)\
+ docs <- tm_map(docs, tolower)\
+ \
+ toSpace <- content_transformer(function (x , pattern ) gsub(pattern, " ", x))\
+ docs <- tm_map(docs, toSpace, "@")   #Remove @\
+ docs <- tm_map(docs, toSpace, "/")   #Remove /\
+ docs <- tm_map(docs, toSpace, "\\\\|") #Remove |\
+ \
+ \
+ #Remove the stop word\
+ docs <- tm_map(docs, removeWords, stopwords("english"))\
+ docs <- tm_map(docs, removeWords, stopwords("SMART"))\
+ \
+ \
+ docs <- tm_map(docs, stemDocument)\
+ \
+ \
+ #Remove the white space introduced during the pre-processing\
+ docs <- tm_map(docs, stripWhitespace)\
+ dtm <- DocumentTermMatrix(docs)\
+ \
+ m <- as.matrix(dtm)   #Convert dtm to a matrix\
+ dim(m)                # Display number of terms and number of documents\
+ View(m[1:10, 1:10])   # Preview the first 10 rows and the first 10 columns in m\
+ \
+ #find the terms that appear at least 100 times\
+ findFreqTerms(dtm, lowfreq=100)\
+ #find the terms asosciated with good and great with correlation at least 0.15\
+ findAssocs(dtm, c("great", "good"), corlimit=0.20)\
+ \
+ # Wordcloud\
+ dtms <- removeSparseTerms(dtm, 0.6) # Prepare the data (max 60% empty space)   \
+ freq <- colSums(as.matrix(dtm)) # Find word frequencies   \
+ dark2 <- brewer.pal(6, "Dark2")   \
+ wordcloud(names(freq), freq, min.freq=400, max.words=1000, rot.per=0.2, scale=c(0.8, 0.9), colors=dark2)    \
+ \
+ # Terms Cluster dendogram\
+ library("cluster")\
+ \
+ dtms <- removeSparseTerms(dtm, 0.98)    #Remove sparse terms\
+ d <- dist(t(dtms), method="euclidian")  #Build the dissimilarity matrix\
+ fit <- hclust(d=d, method="ward.D2")\
+ plot(fit, hang=-1)\
+ \
+ #Network of terms\
+ library ("igraph")\
+ tdm<-TermDocumentMatrix(docs)              # Term document matrix\
+ tdm <- removeSparseTerms(tdm, 0.96)        # Remove sparse terms\
+ termDocMatrix <- as.matrix(tdm)            # Convert tdm to matrix\
+ \
+ termDocMatrix[termDocMatrix>=1] <- 1       # Set non-zero entries to 1 (1=term present, 0=term absent)\
+ termMatrix <- termDocMatrix %*% t(termDocMatrix)   \
+ View (termMatrix)\
+ \
+ g <- graph.adjacency(termMatrix, weighted=T, mode="undirected")\
+ g <- simplify(g)                 # Remove the self-relationships\
+ # V(g) is a graph vertex\
+ V(g)$label <- V(g)$name          # Label each vertex with a term\
+ V(g)$degree <- degree(g)\
+ set.seed(3952)\
+ \
+ plot(g, layout=layout.fruchterman.reingold(g), vertex.color="cyan")\
+ plot(g, layout=layout_with_gem(g), vertex.color="pink")\
+ plot(g, layout=layout_as_star(g), vertex.color="yellow", vertex.shape="square")\
+ plot(g, layout=layout_on_sphere(g), vertex.color="magenta")\
+ plot(g, layout=layout_randomly(g), vertex.size=10)\
+ plot(g, layout=layout_in_circle(g), vertex.color="pink", vertex.size=35)\
+ plot(g, layout=layout_nicely(g), vertex.color="plum", vertex.size=25)\
+ plot(g, layout=layout_on_grid(g), vertex.color="green", vertex.size=20)\
+ plot(g, layout=layout_as_tree(g), vertex.color="brown", vertex.size=20)\
+ \
+ cl <- maximal.cliques(g)\
+ cl\
+ \
+ colbar <- rainbow(length(cl) + 1) \
+ for (i in 1:length(cl)) \{V(g)[cl[[i]]]$color <- colbar[i+1] \}\
+ plot(g, mark.groups=cl,vertex.size=.3, vertex.label.cex=1.2, edge.color=rgb(.4,.4,0,.3))\
+ \
+ \
+ \
+ #k-means clustering\
+ library(cluster)\
+ dtms <- removeSparseTerms(dtm, 0.99) \
+ d <- dist(t(dtms), method="euclidian")   \
+ kfit <- kmeans(d, 5)   \
+ \
+ clusplot(as.matrix(d), kfit$cluster, color=T, shade=T, labels=2, lines=0)  \
+ kfit\
+ \
+ #Plot the total squared distance between clusters and within clusters by k value\
+ bss<-integer(length(2:15))\
+ for (i in 2:15) bss[i] <- kmeans(d,centers=i)$betweenss\
+ plot(1:15, bss, type="b", xlab="Number of Clusters",\
+      ylab="Sum of squares", col="blue") \
+ wss<-integer(length(2:15))\
+ for (i in 2:15) wss[i] <- kmeans(d,centers=i)$tot.withinss\
+ lines(1:15, wss, type="b" ) \
+ \
+ #Exit\
+ q()}
